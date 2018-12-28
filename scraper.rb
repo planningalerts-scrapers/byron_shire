@@ -17,7 +17,9 @@ page.search("#fullcontent h4.non_table_headers").each do |h4|
     fields[key] = value
   end
 
-  info_url = (page.uri + h4.at("a")["href"]).to_s
+  # It seems we don't have persistent urls for development applications. Sigh.
+  # So just sending people to the generic search page. This makes me very sad.
+  info_url = "https://eservices.byron.nsw.gov.au/eservice/daEnquiryInit.do?doc_type=10&fromDate=01/01/2006&nodeNum=1156"
   record = {
     "council_reference" => fields["Application No."],
     "address" => h4.at("a").inner_text.squeeze(" "),
