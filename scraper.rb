@@ -1,25 +1,36 @@
-# This is a template for a Ruby scraper on morph.io (https://morph.io)
-# including some code snippets below that you should find helpful
+# Scrapes CIVICA system for Byron Shire council
 
-# require 'scraperwiki'
-# require 'mechanize'
-#
-# agent = Mechanize.new
-#
-# # Read in a page
-# page = agent.get("http://foo.com")
-#
-# # Find somehing on the page using css selectors
-# p page.at('div.content')
-#
-# # Write out to the sqlite database using scraperwiki library
-# ScraperWiki.save_sqlite(["name"], {"name" => "susan", "occupation" => "software developer"})
-#
-# # An arbitrary query against the database
-# ScraperWiki.select("* from data where 'name'='peter'")
+require 'scraperwiki'
+require 'mechanize'
 
-# You don't have to do things with the Mechanize or ScraperWiki libraries.
-# You can use whatever gems you want: https://morph.io/documentation/ruby
-# All that matters is that your final data is written to an SQLite database
-# called "data.sqlite" in the current working directory which has at least a table
-# called "data".
+agent = Mechanize.new
+
+url = "https://eservices.byron.nsw.gov.au/eservice/daEnquiry/currentlyAdvertised.do?orderBy=suburb&nodeNum=1149"
+
+page = agent.get(url)
+
+page.search("#fullcontent h4.non_table_headers").each do |h4|
+  fields = {}
+  h4.next_sibling.search("p.rowDataOnly").each do |p|
+    key = p.at(".key").inner_text
+    value = p.at(".inputField").inner_text
+    fields[key] = value
+  end
+
+  info_url = (page.uri + h4.at("a")["href"]).to_s
+  record = {
+    "council_reference" => fields["Application No."],
+    "address" => h4.at("a").inner_text.squeeze(" "),
+    "description" => fields["Type of Work"],
+    "info_url" => info_url,
+    "comment_url" => info_url,
+    "date_scraped" => Date.today.to_s,
+    "date_received" => Date.parse(fields["Date Lodged"]).to_s
+  }
+
+  if (ScraperWiki.select("* from data where `council_reference`='#{record['council_reference']}'").empty? rescue true)
+    ScraperWiki.save_sqlite(["council_reference"], record)
+  else
+    puts "Skipping already saved record " + record["council_reference"]
+  end
+end
